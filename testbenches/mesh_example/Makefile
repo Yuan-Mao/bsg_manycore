@@ -23,8 +23,8 @@ SRC_DIRS	+= $(BSG_IP_CORES_DIR)/bsg_test
 SRC_DIRS	+= $(BSG_IP_CORES_DIR)/bsg_mem
 SRC_DIRS	+= ./
 
-PKG_FILES	+= $(BSG_IP_CORES_DIR)/bsg_misc/bsg_defines.v
-PKG_FILES	+= $(BSG_IP_CORES_DIR)/bsg_noc/bsg_noc_pkg.v
+PKG_FILES	+= $(BSG_IP_CORES_DIR)/bsg_misc/bsg_defines.sv
+PKG_FILES	+= $(BSG_IP_CORES_DIR)/bsg_noc/bsg_noc_pkg.sv
 
 ###########################################
 # DEFINE THE VCS OPTIONS
@@ -43,7 +43,7 @@ run:
 	$(addprefix +incdir+, $(INC_DIRS) )	\
 	$(addprefix -y , $(SRC_DIRS)     )	\
 	$(PKG_FILES)				\
-	test_bench.v -top test_bench
+	test_bench.sv -top test_bench
 dve:
 	$(VCS_BIN)/dve -full64 -vpd vcdplus.vpd &
 
