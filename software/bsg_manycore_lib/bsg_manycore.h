@@ -76,6 +76,19 @@ typedef volatile void *bsg_remote_void_ptr;
 #define bsg_fail_x(x)       do {  bsg_remote_int_ptr ptr = bsg_remote_ptr_io(x,0xEAD8); *ptr = ((bsg_y << 16) + bsg_x); while (1); } while(0)
 #define bsg_print_time()   do {  bsg_remote_int_ptr ptr = bsg_remote_ptr_io(IO_X_INDEX,0xEAD4); *ptr = ((bsg_y << 16) + bsg_x); } while(0)
 
+// Static, inline functions for starting and stopping the PC profiler
+static inline void bsg_pc_profiler_start()
+{
+        __asm__ __volatile__ ("csrs mie, %0": : "r" (0x20000));
+        // Enable interrupts if not already enabled; One instruction overhead if interrupts were already enabled
+        __asm__ __volatile__ ("csrs mstatus, %0" : : "r" (0x8));
+}
+static inline void bsg_pc_profiler_end()
+{
+        // Disable trace interupts; Other interrupts might still be active so don't clear mstatus interrupt enable bit
+        __asm__ __volatile__ ("csrc mie, %0": : "r" (0x20000));
+}
+
 #define bsg_putchar( c )       do {  bsg_remote_uint8_ptr ptr = (bsg_remote_uint8_ptr) bsg_remote_ptr_io(IO_X_INDEX,0xEADC); *ptr = c; } while(0)
 #define bsg_putchar_err( c )       do {  bsg_remote_uint8_ptr ptr = (bsg_remote_uint8_ptr) bsg_remote_ptr_io(IO_X_INDEX,0xEEE0); *ptr = c; } while(0)
 
@@ -154,6 +167,18 @@ inline void bsg_fence()      { __asm__ __volatile__("fence" :::); }
 
 #define bsg_compiler_memory_barrier() asm volatile("" ::: "memory")
 
+
+// These functions are a simple way to issue pre-fetch commands to the
+// caches.  amo prefetch should not be used in practice since it marks
+// the cache line as dirty. However, it is a great way to verify that
+// preloads are accomplishing their goal; if all data is prefetched
+// correctly with an amo operation, the load and store miss rate will
+// go to 0.
+inline void bsg_amo_prefetch(int * ptr){ asm volatile ("amoor.w x0, x0, 0(%[p])": : [p] "r" (ptr));}
+// Verify behavioral correctness with amo prefetch, then replace with
+// lw prefetch:
+inline void bsg_lw_prefetch(int * ptr){ asm volatile ("lw x0, 0(%[p])": : [p] "r" (ptr));}
+        
 #define bsg_commit_stores() do { bsg_fence(); /* fixme: add commit stores instr */  } while (0)
 
 // This micros are used to print the definiations in manycore program at compile time.
@@ -233,10 +258,11 @@ inline void bsg_fence()      { __asm__ __volatile__("fence" :::); }
 #define BSG_CUDA_PRINT_STAT_Y_MASK          ((1 << BSG_CUDA_PRINT_STAT_Y_WIDTH) - 1)      // 0x3F
 
 //Macros for triggering saif generation
-#define bsg_saif_start() asm volatile ("addi zero,zero,1")
+#define bsg_saif_start() bsg_global_store(IO_X_INDEX, IO_Y_INDEX,0xFFF0,0)
+#define bsg_saif_end()   bsg_global_store(IO_X_INDEX, IO_Y_INDEX,0xFFF4,0)
 
-#define bsg_saif_end() asm volatile ("addi zero,zero,2")
-
+#define bsg_nonsynth_saif_start() asm volatile ("addi zero,zero,1")
+#define bsg_nonsynth_saif_end() asm volatile ("addi zero,zero,2")
 
 #define bsg_print_stat(tag) do { bsg_remote_int_ptr ptr = bsg_remote_ptr_io(IO_X_INDEX,0xd0c); *ptr = tag; } while (0)
 
