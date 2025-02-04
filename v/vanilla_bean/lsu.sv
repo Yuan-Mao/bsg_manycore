@@ -62,6 +62,9 @@ module lsu
   assign mem_addr = exe_rs1_i + `BSG_SIGN_EXTEND(mem_offset_i, data_width_p);
   assign miss_addr = (pc_plus4_i - 'h4) | bsg_dram_npa_prefix_gp;
 
+  // cbo target address
+  wire [data_width_p-1:0] cbo_addr = exe_rs1_i;
+
   // store data mask
   //
   logic [data_width_p-1:0] store_data;
@@ -106,6 +109,12 @@ module lsu
 
   assign byte_sel_o = mem_addr[1:0];
 
+  // CBO
+  wire is_cbo_clean = exe_decode_i.is_cbo_clean;
+  wire is_cbo_flush = exe_decode_i.is_cbo_flush;
+  wire is_cbo_inval = exe_decode_i.is_cbo_inval;
+  wire is_cbo = exe_decode_i.is_cbo_clean |
+    exe_decode_i.is_cbo_flush | exe_decode_i.is_cbo_inval;
   // remote request
   // 1) icache fetch
   // 2) remote store
@@ -137,21 +146,37 @@ module lsu
     end
 
     remote_req_o = '{
-      write_not_read : (exe_decode_i.is_store_op),
+      access_type : (is_cbo
+        ? e_vanilla_cbo
+        : exe_decode_i.is_store_op
+          ? e_vanilla_write
+          : e_vanilla_read),
       is_amo_op : exe_decode_i.is_amo_op, 
       amo_type : exe_decode_i.amo_type,
       mask: store_mask,
       load_info : load_info,
+      // Now I kind of treat reg_id as an opaque/misc field
       reg_id : exe_rd_i,
+      cache_op : (is_cbo_clean
+        ? e_afl
+        : is_cbo_flush
+          ? e_aflinv
+          : is_cbo_inval
+            ? e_ainv
+            : e_tagfl), // e_tagfl used as default
       data : store_data,
-      addr : (icache_miss_i ? miss_addr : mem_addr)
+      addr : (icache_miss_i
+        ? miss_addr
+        : is_cbo_flush
+          ? cbo_addr
+          : mem_addr)
     }; 
 
   end
 
 
   assign remote_req_v_o = icache_miss_i |
-    ((exe_decode_i.is_load_op | exe_decode_i.is_store_op | exe_decode_i.is_amo_op) & ~is_local_dmem_addr);
+    ((exe_decode_i.is_load_op | exe_decode_i.is_store_op | exe_decode_i.is_amo_op | is_cbo) & ~is_local_dmem_addr);
 
   // reserve
   // only valid on local DMEM

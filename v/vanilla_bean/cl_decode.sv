@@ -58,7 +58,7 @@ always_comb begin
     `RV32_JALR_OP, `RV32_BRANCH,
     `RV32_LOAD, `RV32_STORE,
     `RV32_OP, `RV32_OP_IMM,
-    `RV32_AMO_OP: begin
+    `RV32_AMO_OP, `RV32_MISC_MEM: begin
       decode_o.read_rs1 = 1'b1;
     end
    `RV32_OP_FP: begin
@@ -122,6 +122,12 @@ assign decode_o.is_load_unsigned =
 assign decode_o.is_branch_op = instruction_i.op ==? `RV32_BRANCH;
 assign decode_o.is_jal_op = instruction_i.op == `RV32_JAL_OP;
 assign decode_o.is_jalr_op = instruction_i.op == `RV32_JALR_OP;
+
+// CBO
+wire is_cbo = (instruction_i ==? `RV32_CBO);
+assign decode_o.is_cbo_clean = is_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CBO_CLEAN);
+assign decode_o.is_cbo_flush = is_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CBO_FLUSH);
+assign decode_o.is_cbo_inval = is_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CBO_INVAL);
 
 // MEMORY FENCE
 always_comb begin

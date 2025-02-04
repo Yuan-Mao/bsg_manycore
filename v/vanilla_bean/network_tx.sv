@@ -9,6 +9,7 @@
 module network_tx
   import bsg_manycore_pkg::*;
   import bsg_vanilla_pkg::*;
+  import bsg_cache_pkg::*;
   #(`BSG_INV_PARAM(data_width_p)
     , `BSG_INV_PARAM(addr_width_p)
     , `BSG_INV_PARAM(x_cord_width_p)
@@ -17,6 +18,7 @@ module network_tx
     , `BSG_INV_PARAM(pod_y_cord_width_p)
     , `BSG_INV_PARAM(vcache_size_p) // vcache capacity in words
     , `BSG_INV_PARAM(vcache_block_size_in_words_p)
+    , `BSG_INV_PARAM(vcache_ways_p)
     , `BSG_INV_PARAM(vcache_sets_p)
     , `BSG_INV_PARAM(ipoly_hashing_p)
  
@@ -39,6 +41,8 @@ module network_tx
 
     , packet_width_lp=
       `bsg_manycore_packet_width(addr_width_p,data_width_p,x_cord_width_p,y_cord_width_p)
+    , localparam lg_ways_lp=`BSG_SAFE_CLOG2(vcache_ways_p)
+    , localparam lg_sets_lp=`BSG_SAFE_CLOG2(vcache_sets_p)
   )
   (
     input clk_i
@@ -104,6 +108,8 @@ module network_tx
   // EVA -> NPA translation
   //
   logic is_invalid_addr_lo;
+  logic is_dram_addr_lo;
+  logic is_illegal_addr;
   logic [x_cord_width_p-1:0] x_cord_lo;
   logic [y_cord_width_p-1:0] y_cord_lo;
   logic [addr_width_p-1:0] epa_lo;
@@ -131,6 +137,7 @@ module network_tx
     ,.epa_o(epa_lo)
 
     ,.is_invalid_addr_o(is_invalid_addr_lo) 
+    ,.is_dram_addr_o(is_dram_addr_lo)
 
     // the pod rehoming stuff should not affect instruction cache fetches	     
     ,.pod_x_i(remote_req_i.load_info.icache_fetch ? pod_x_i : cfg_pod_x_i)
@@ -140,8 +147,8 @@ module network_tx
   // Out Packet Builder.
   //
   always_comb begin
-
-    if (remote_req_i.write_not_read | remote_req_i.is_amo_op) begin
+    is_illegal_addr = 1'b0;
+    if (remote_req_i.access_type == e_vanilla_write | remote_req_i.is_amo_op) begin
       out_packet.payload = remote_req_i.data;
     end
     else begin
@@ -153,9 +160,33 @@ module network_tx
     out_packet.x_cord = x_cord_lo;
     out_packet.addr = epa_lo;
 
-    if (remote_req_i.write_not_read) begin
+    if (remote_req_i.access_type == e_vanilla_cbo) begin
+      if (remote_req_i.cache_op == e_tagfl) begin
+        // TAGFL has its own format. Need to do it separately
+        // {8b x_cord, 8b y_cord, 4b way, 12b set}
+        out_packet.x_cord = remote_req_i.addr[24+:y_cord_width_p];
+        out_packet.y_cord = remote_req_i.addr[16+:x_cord_width_p];
+        out_packet.addr = {
+          1'b1, {(addr_width_p-lg_ways_lp-lg_sets_lp-5){1'b0}},
+          remote_req_i.addr[12+:lg_ways_lp],
+          remote_req_i.addr[0+:lg_sets_lp],
+          4'b0}; // word address
+      end
+      else begin
+        // e_afl, e_aflinv, e_ainv
+        if (is_dram_addr_lo == 1'b0) begin
+          // can only be used on dram address
+          is_illegal_addr = 1'b1;
+        end
+      end
+    end
+
+    if (remote_req_i.access_type == e_vanilla_write) begin
       out_packet.reg_id.store_mask_s.mask = remote_req_i.mask;
       out_packet.reg_id.store_mask_s.unused = 1'b0;
+    end
+    else if (remote_req_i.access_type == e_vanilla_cbo) begin
+      out_packet.reg_id.cache_op = remote_req_i.cache_op;
     end
     else begin
       out_packet.reg_id = remote_req_i.reg_id;
@@ -173,8 +204,11 @@ module network_tx
       endcase
     end
     else begin
-      if (remote_req_i.write_not_read) begin
+      if (remote_req_i.access_type == e_vanilla_write) begin
         out_packet.op_v2 = e_remote_store;
+      end
+      else if (remote_req_i.access_type == e_vanilla_cbo) begin
+        out_packet.op_v2 = e_cache_op;
       end
       else begin
         out_packet.op_v2 = e_remote_load;
@@ -185,9 +219,10 @@ module network_tx
 
   // handling outgoing requests
   //
-  assign out_v_o = remote_req_v_i & ~is_invalid_addr_lo;
+  wire is_illegal_access = is_invalid_addr_lo | is_illegal_addr;
+  assign out_v_o = remote_req_v_i & ~is_illegal_access;
   assign remote_req_credit_o = out_credit_or_ready_i;
-  assign invalid_eva_access_o = remote_req_v_i & is_invalid_addr_lo;
+  assign invalid_eva_access_o = remote_req_v_i & is_illegal_access;
 
 
   // handling response packets
@@ -235,9 +270,9 @@ module network_tx
   // synopsys translate_off
   always_ff @ (negedge clk_i) begin
 
-    if (remote_req_v_i & is_invalid_addr_lo) begin
-      $display("[ERROR][TX] Invalid EVA access. t=%0t, x=%d, y=%d, cfg_pod_x_i=%d, cfg_pod_y_i=%d, addr=%h data=%h w=%b",
-        $time, {pod_x_i, my_x_i}, {pod_y_i, my_y_i}, cfg_pod_x_i, cfg_pod_y_i, remote_req_i.addr, remote_req_i.data, remote_req_i.write_not_read);
+    if (remote_req_v_i & is_illegal_access) begin
+      $display("[ERROR][TX] Invalid EVA access. t=%0t, x=%d, y=%d, cfg_pod_x_i=%d, cfg_pod_y_i=%d, addr=%h data=%h access=%b",
+        $time, {pod_x_i, my_x_i}, {pod_y_i, my_y_i}, cfg_pod_x_i, cfg_pod_y_i, remote_req_i.addr, remote_req_i.data, remote_req_i.access_type);
     end 
 
     if (returned_v_i) begin

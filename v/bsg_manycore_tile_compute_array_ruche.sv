@@ -17,6 +17,7 @@ module bsg_manycore_tile_compute_array_ruche
 
     , `BSG_INV_PARAM(vcache_size_p ) // capacity per vcache in words
     , `BSG_INV_PARAM(vcache_block_size_in_words_p )
+    , `BSG_INV_PARAM(vcache_ways_p )
     , `BSG_INV_PARAM(vcache_sets_p )
     , `BSG_INV_PARAM(ruche_factor_X_p)
 
@@ -168,6 +169,7 @@ module bsg_manycore_tile_compute_array_ruche
         ,.num_tiles_x_p(num_tiles_x_p)
         ,.num_tiles_y_p(num_tiles_y_p)
         ,.vcache_block_size_in_words_p(vcache_block_size_in_words_p)
+        ,.vcache_ways_p(vcache_ways_p)
         ,.vcache_sets_p(vcache_sets_p)
         ,.ruche_factor_X_p(ruche_factor_X_p)
         ,.barrier_ruche_factor_X_p(barrier_ruche_factor_X_p)

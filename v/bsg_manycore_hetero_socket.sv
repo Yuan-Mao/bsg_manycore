@@ -22,6 +22,7 @@
                           ,.dmem_size_p (dmem_size_p )                                 \
                           ,.vcache_size_p(vcache_size_p)                               \
                           ,.vcache_block_size_in_words_p(vcache_block_size_in_words_p) \
+                          ,.vcache_ways_p(vcache_ways_p)                               \
                           ,.vcache_sets_p(vcache_sets_p)                               \
                           ,.debug_p(debug_p)                                           \
                           ,.icache_entries_p(icache_entries_p)                         \
@@ -73,6 +74,7 @@ module bsg_manycore_hetero_socket
     , localparam x_subcord_width_lp = `BSG_SAFE_CLOG2(num_tiles_x_p)
     , y_subcord_width_lp = `BSG_SAFE_CLOG2(num_tiles_y_p)
     , parameter `BSG_INV_PARAM(vcache_block_size_in_words_p)
+    , `BSG_INV_PARAM(vcache_ways_p)
     , `BSG_INV_PARAM(vcache_sets_p)
     , `BSG_INV_PARAM(fwd_fifo_els_p )
     , `BSG_INV_PARAM(rev_fifo_els_p )

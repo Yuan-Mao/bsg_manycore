@@ -54,6 +54,8 @@ module bsg_manycore_eva_to_npa
 
     // EVA does not map to any valid remote NPA location.
     , output logic is_invalid_addr_o
+
+    , output logic is_dram_addr_o
   );
 
   // localparam
@@ -109,6 +111,7 @@ module bsg_manycore_eva_to_npa
   // EVA->NPA table
   always_comb begin
     is_invalid_addr_o = 1'b0;
+    is_dram_addr_o = is_dram_addr;
 
     if (is_dram_addr) begin
       y_cord_o = dram_y_cord_lo;
