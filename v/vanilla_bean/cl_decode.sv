@@ -125,9 +125,15 @@ assign decode_o.is_jalr_op = instruction_i.op == `RV32_JALR_OP;
 
 // CBO
 wire is_cbo = (instruction_i ==? `RV32_CBO);
+wire is_custom_cbo = (instruction_i ==? `RV32_CUSTOM_CBO);
+wire rd_is_zero = (instruction_i[11:7] == 5'b0);
 assign decode_o.is_cbo_clean = is_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CBO_CLEAN);
 assign decode_o.is_cbo_flush = is_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CBO_FLUSH);
 assign decode_o.is_cbo_inval = is_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CBO_INVAL);
+assign decode_o.is_custom_cbo_taglv = is_custom_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CUSTOM_CBO_TAGLV);
+assign decode_o.is_custom_cbo_tagla = is_custom_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CUSTOM_CBO_TAGLA);
+assign decode_o.is_custom_cbo_tagfl = is_custom_cbo & (`RV32_Iimm_12extract(instruction_i) == `RV32_CUSTOM_CBO_TAGFL) & rd_is_zero;
+
 
 // MEMORY FENCE
 always_comb begin

@@ -71,6 +71,11 @@ package bsg_manycore_pkg;
     ,e_ainv
     ,e_aflinv
     ,e_tagfl
+    // Although bsg_manycore_link_to_cache has exposed taglv and tagla via memory map, HB tiles could not
+    // hit that address space so we have to distinguish taglv, tagla through types instead of the accessed
+    // mem address.
+    ,e_taglv
+    ,e_tagla
   } bsg_manycore_cache_op_type_e;
 
 

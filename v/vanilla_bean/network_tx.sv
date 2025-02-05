@@ -161,8 +161,9 @@ module network_tx
     out_packet.addr = epa_lo;
 
     if (remote_req_i.access_type == e_vanilla_cbo) begin
-      if (remote_req_i.cache_op == e_tagfl) begin
-        // TAGFL has its own format. Need to do it separately
+      if (remote_req_i.cache_op == e_tagfl || remote_req_i.cache_op == e_taglv ||
+          remote_req_i.cache_op == e_tagla ) begin
+        // TAGFL, TAGLV, TAGLA share different format. Need to do it separately
         // {8b x_cord, 8b y_cord, 4b way, 12b set}
         out_packet.x_cord = remote_req_i.addr[24+:y_cord_width_p];
         out_packet.y_cord = remote_req_i.addr[16+:x_cord_width_p];
@@ -170,7 +171,8 @@ module network_tx
           1'b1, {(addr_width_p-lg_ways_lp-lg_sets_lp-5){1'b0}},
           remote_req_i.addr[12+:lg_ways_lp],
           remote_req_i.addr[0+:lg_sets_lp],
-          4'b0}; // word address
+          4'b0
+        }; // word address
       end
       else begin
         // e_afl, e_aflinv, e_ainv

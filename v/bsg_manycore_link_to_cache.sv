@@ -297,7 +297,14 @@ module bsg_manycore_link_to_cache
           case (packet_lo.op_v2)
             e_remote_store, e_remote_sw: cache_pkt.opcode = TAGST;
             e_remote_load:  cache_pkt.opcode = TAGLA;
-            e_cache_op:     cache_pkt.opcode = TAGFL;
+            e_cache_op: begin
+              case (packet_lo.reg_id.cache_op)
+                e_tagfl: cache_pkt.opcode = TAGFL;
+                e_taglv: cache_pkt.opcode = TAGLV;
+                e_tagla: cache_pkt.opcode = TAGLA;
+                default: cache_pkt.opcode = TAGFL; // should never happen
+              endcase
+            end
             default:        cache_pkt.opcode = TAGLA;
           endcase
         end

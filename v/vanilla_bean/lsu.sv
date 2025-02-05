@@ -113,8 +113,12 @@ module lsu
   wire is_cbo_clean = exe_decode_i.is_cbo_clean;
   wire is_cbo_flush = exe_decode_i.is_cbo_flush;
   wire is_cbo_inval = exe_decode_i.is_cbo_inval;
+  wire is_custom_cbo_taglv = exe_decode_i.is_custom_cbo_taglv;
+  wire is_custom_cbo_tagla = exe_decode_i.is_custom_cbo_tagla;
+  wire is_custom_cbo_tagfl = exe_decode_i.is_custom_cbo_tagfl;
   wire is_cbo = exe_decode_i.is_cbo_clean |
     exe_decode_i.is_cbo_flush | exe_decode_i.is_cbo_inval;
+  wire is_custom_cbo = is_custom_cbo_taglv | is_custom_cbo_tagla | is_custom_cbo_tagfl;
   // remote request
   // 1) icache fetch
   // 2) remote store
@@ -122,6 +126,7 @@ module lsu
   // 4) atomic
   bsg_manycore_load_info_s load_info;
   
+
   always_comb begin
     // load info
     if (icache_miss_i) begin
@@ -145,8 +150,9 @@ module lsu
       };
     end
 
+
     remote_req_o = '{
-      access_type : (is_cbo
+      access_type : ((is_cbo | is_custom_cbo)
         ? e_vanilla_cbo
         : exe_decode_i.is_store_op
           ? e_vanilla_write
@@ -155,15 +161,22 @@ module lsu
       amo_type : exe_decode_i.amo_type,
       mask: store_mask,
       load_info : load_info,
-      // Now I kind of treat reg_id as an opaque/misc field
       reg_id : exe_rd_i,
+      // TODO: make it cleaner
       cache_op : (is_cbo_clean
         ? e_afl
         : is_cbo_flush
           ? e_aflinv
           : is_cbo_inval
             ? e_ainv
-            : e_tagfl), // e_tagfl used as default
+            : is_custom_cbo_taglv
+              ? e_taglv
+              : is_custom_cbo_tagla
+                ? e_tagla
+                : is_custom_cbo_tagfl
+                  ? e_tagfl
+                  : e_tagfl), // e_tagfl used as default
+
       data : store_data,
       addr : (icache_miss_i
         ? miss_addr

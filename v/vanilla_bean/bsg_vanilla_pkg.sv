@@ -151,6 +151,11 @@ typedef struct packed {
   logic is_cbo_flush;
   logic is_cbo_inval;
 
+  // Custom CBO
+  logic is_custom_cbo_taglv;
+  logic is_custom_cbo_tagla;
+  logic is_custom_cbo_tagfl;
+
   // This signal is for debugging only.
   // It shouldn't be used to synthesize any actual circuits.
   logic unsupported;
