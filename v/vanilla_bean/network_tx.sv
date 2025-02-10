@@ -107,7 +107,8 @@ module network_tx
 
   // EVA -> NPA translation
   //
-  logic is_invalid_addr_lo;
+  logic is_invalid_addr_lo; // valid if is_valid_eva == 1'b1
+  logic is_valid_eva;
   logic is_dram_addr_lo;
   logic is_illegal_addr;
   logic [x_cord_width_p-1:0] x_cord_lo;
@@ -148,6 +149,7 @@ module network_tx
   //
   always_comb begin
     is_illegal_addr = 1'b0;
+    is_valid_eva = 1'b1;
     if (remote_req_i.access_type == e_vanilla_write | remote_req_i.is_amo_op) begin
       out_packet.payload = remote_req_i.data;
     end
@@ -163,8 +165,9 @@ module network_tx
     if (remote_req_i.access_type == e_vanilla_cbo) begin
       if (remote_req_i.cache_op == e_tagfl || remote_req_i.cache_op == e_taglv ||
           remote_req_i.cache_op == e_tagla ) begin
-        // TAGFL, TAGLV, TAGLA share different format. Need to do it separately
-        // {8b x_cord, 8b y_cord, 4b way, 12b set}
+        // Address from TAGFL, TAGLV, TAGLA is not eva. Need to do it separately
+        // Format: {8b x_cord, 8b y_cord, 4b way, 12b set}
+        is_valid_eva = 1'b0;
         out_packet.x_cord = remote_req_i.addr[24+:y_cord_width_p];
         out_packet.y_cord = remote_req_i.addr[16+:x_cord_width_p];
         out_packet.addr = {
@@ -221,7 +224,7 @@ module network_tx
 
   // handling outgoing requests
   //
-  wire is_illegal_access = is_invalid_addr_lo | is_illegal_addr;
+  wire is_illegal_access = (is_valid_eva & is_invalid_addr_lo) | is_illegal_addr;
   assign out_v_o = remote_req_v_i & ~is_illegal_access;
   assign remote_req_credit_o = out_credit_or_ready_i;
   assign invalid_eva_access_o = remote_req_v_i & is_illegal_access;
@@ -273,7 +276,7 @@ module network_tx
   always_ff @ (negedge clk_i) begin
 
     if (remote_req_v_i & is_illegal_access) begin
-      $display("[ERROR][TX] Invalid EVA access. t=%0t, x=%d, y=%d, cfg_pod_x_i=%d, cfg_pod_y_i=%d, addr=%h data=%h access=%b",
+      $display("[ERROR][TX] Invalid EVA access. t=%0t, x=%d, y=%d, cfg_pod_x_i=%d, cfg_pod_y_i=%d, addr=%h, data=%h, access=%b",
         $time, {pod_x_i, my_x_i}, {pod_y_i, my_y_i}, cfg_pod_x_i, cfg_pod_y_i, remote_req_i.addr, remote_req_i.data, remote_req_i.access_type);
     end 
 
