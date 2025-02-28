@@ -2,7 +2,7 @@
 `include "bsg_manycore_defines.svh"
 `include "bsg_cache.svh"
 
-module bsg_nonsynth_wormhole_test_io
+module bsg_nonsynth_wormhole_test_uncached_io
   import bsg_manycore_pkg::*;
   import bsg_cache_pkg::*;
   #(parameter `BSG_INV_PARAM(vcache_data_width_p)
@@ -280,5 +280,5 @@ module bsg_nonsynth_wormhole_test_io
 
 endmodule
 
-`BSG_ABSTRACT_MODULE(bsg_nonsynth_wormhole_test_mem)
+`BSG_ABSTRACT_MODULE(bsg_nonsynth_wormhole_test_uncached_io)
 
