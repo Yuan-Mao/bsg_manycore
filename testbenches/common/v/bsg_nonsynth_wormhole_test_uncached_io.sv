@@ -246,17 +246,15 @@ module bsg_nonsynth_wormhole_test_uncached_io
   if (no_concentration_p) begin
     // no concentration. each wh ruche link gets a test_mem.
     assign mem_addr = {
+      src_cid_r[0+:wh_cid_width_p],
       src_cord_r[0+:lg_num_vcaches_lp],
-      addr_r[block_offset_width_lp+:mem_addr_width_lp-lg_num_vcaches_lp-count_width_lp],
+      addr_r[block_offset_width_lp+:mem_addr_width_lp-lg_num_vcaches_lp-count_width_lp-wh_cid_width_p],
       count_lo
     };
   end
   else begin
     // not implemented;
   end
-
-
-
 
 
   always_ff @ (posedge clk_i) begin

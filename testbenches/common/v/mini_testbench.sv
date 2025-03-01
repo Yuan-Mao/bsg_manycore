@@ -204,8 +204,8 @@ module mini_testbench
       ,.link_i(rtr_wh_link_sif_li[i])
       ,.link_o(rtr_wh_link_sif_lo[i])
 
-      // 4'b1110
-      ,.my_cord_i({{wh_cord_width_p-1{1'b1}}, 1'b0})
+      // 4'b1111
+      ,.my_cord_i({{wh_cord_width_p-1{1'b1}}, 1'b1})
     );
 
     bsg_nonsynth_wormhole_test_mem #(
@@ -258,7 +258,7 @@ module mini_testbench
     ,.wh_flit_width_p(wh_flit_width_p)
     ,.wh_cord_width_p(wh_cord_width_p)
     ,.wh_len_width_p(wh_len_width_p)
-    ,.mem_size_p(mem_size_lp)
+    ,.mem_size_p(2*mem_size_lp)
     ,.no_concentration_p(1)
   ) test_io (
     .clk_i(core_clk)
